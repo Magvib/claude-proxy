@@ -25,7 +25,7 @@ const server = Bun.serve({
                     display_name: model.id.replace(/[:-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
                     id: 'opus-' + model.id,
                     type: "model"
-                }))
+                })).sort((a, b) => a.display_name.localeCompare(b.display_name))
             };
 
             return new Response(JSON.stringify(claudeModels), {
