@@ -13,6 +13,7 @@ if (log) {
 }
 
 const server = Bun.serve({
+    idleTimeout: 255,
     port: port,
     routes: {
         "/v1/models": async req => {
