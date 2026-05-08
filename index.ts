@@ -33,11 +33,29 @@ const server = Bun.serve({
             });
         },
         "/v1/web_search": async req => {
-            
-            
-            return new Response("OK");
+            const searchUrl = "https://ollama.com/api/web_search";
+            const query = new URL(req.url).searchParams.get("query") || "";
+
+            if (!query) {
+                return new Response(JSON.stringify({
+                    "results": []
+                }));
+            }
+
+            const response = await fetch(searchUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${ollamaKey}`
+                },
+                body: JSON.stringify({ query })
+            });
+
+            const data = await response.json();
+            return new Response(JSON.stringify(data), {
+                headers: { "Content-Type": "application/json" }
+            });
         },
-        
         "/*" : async req => {
             const url = new URL(req.url);
             const path = url.pathname;
@@ -50,8 +68,9 @@ const server = Bun.serve({
             body = body.replace(/"model":"claude-sonnet-4-6"/g, `"model":"${sonnetAlternative}"`);
             body = body.replace(/"model":"claude-haiku-4-5-20251001"/g, `"model":"${haikuAlternative}"`);
 
-            // remove 'opus-'
+            // remove 'opus-' && 'claude-'
             body = body.replace(/"model":"opus-/g, '"model":"');
+            body = body.replace(/"model":"claude-/g, '"model":"');
 
             const response = await fetch(`https://ollama.com/${path}`, {
                 method,
