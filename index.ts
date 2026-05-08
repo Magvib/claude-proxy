@@ -1,12 +1,11 @@
 console.log("\x1b[1;36mStarting claude-proxy...\x1b[0m");
 
-const ollamaKey = "f7bd5d05a69f43b69a778fc8c31d7357.mr6Yiy5QXrQgo-WFxRBJIlKH";
-const port = 1810;
-const opusAlternative = "glm-5.1";
-const sonnetAlternative = "kimi-k2.6";
-const haikuAlternative = "deepseek-v4-flash";
-
-const log = process.argv.includes("--log") || process.argv.includes("-l");
+const ollamaKey = process.env.OLLAMA_KEY || "";
+const port = process.env.PORT || 1810;
+const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.1";
+const sonnetAlternative = process.env.SONNET_ALTERNATIVE || "kimi-k2.6";
+const haikuAlternative = process.env.HEIKU_ALTERNATIVE || "deepseek-v4-flash";
+const log = process.env.LOG || false;
 const logPrefix = log ? "\x1b[1;36m" : "";
 
 if (log) {
