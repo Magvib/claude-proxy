@@ -5,7 +5,7 @@ const port = process.env.PORT || 1810;
 const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.1";
 const sonnetAlternative = process.env.SONNET_ALTERNATIVE || "kimi-k2.6";
 const haikuAlternative = process.env.HEIKU_ALTERNATIVE || "deepseek-v4-flash";
-const log = process.env.LOGGING || false;
+const log = process.env.LOGGING ? process.env.LOGGING == "true" : false;
 const logPrefix = log ? "\x1b[1;36m" : "";
 
 if (log) {
