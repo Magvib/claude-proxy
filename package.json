@@ -3,6 +3,10 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run --hot index.ts",
+    "prod": "bun build ./index.ts --compile --outfile ./dist/claude-proxy"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

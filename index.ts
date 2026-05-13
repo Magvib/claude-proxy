@@ -23,7 +23,7 @@ const server = Bun.serve({
                 data: ollamaModels.data.map((model) => ({
                     created_at: new Date(model.created * 1000).toISOString(),
                     display_name: model.id.replace(/[:-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-                    id: 'opus-' + model.id,
+                    id: 'claude-opus-:' + btoa(model.id),
                     type: "model"
                 })).sort((a, b) => a.display_name.localeCompare(b.display_name))
             };
@@ -67,6 +67,13 @@ const server = Bun.serve({
             body = body.replace(/"model":"claude-opus-4-7"/g, `"model":"${opusAlternative}"`);
             body = body.replace(/"model":"claude-sonnet-4-6"/g, `"model":"${sonnetAlternative}"`);
             body = body.replace(/"model":"claude-haiku-4-5-20251001"/g, `"model":"${haikuAlternative}"`);
+
+            // If model starts with claude-opus-: remove claude-opus-: and then base64 decode the rest
+            if (model.startsWith("claude-opus-:")) {
+                var modelDecoded = model.replace("claude-opus-:", "");
+                modelDecoded = atob(modelDecoded);
+                body = body.replace(/"model":"claude-opus-:([^"]+)"/g, `"model":"${modelDecoded}"`);
+            }
 
             // remove 'opus-' && 'claude-'
             body = body.replace(/"model":"opus-/g, '"model":"');
