@@ -2,7 +2,7 @@ console.log("\x1b[1;36mStarting claude-proxy...\x1b[0m");
 
 const ollamaKey = process.env.OLLAMA_KEY || "";
 const port = process.env.PORT || 1810;
-const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.1";
+const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.2";
 const sonnetAlternative = process.env.SONNET_ALTERNATIVE || "kimi-k2.6";
 const haikuAlternative = process.env.HEIKU_ALTERNATIVE || "deepseek-v4-flash";
 const log = process.env.LOGGING ? process.env.LOGGING == "true" : false;
@@ -15,6 +15,10 @@ if (log) {
 const server = Bun.serve({
     idleTimeout: 255,
     port: port,
+    tls: {
+        cert: Bun.file(process.env.CERT || ""),
+        key: Bun.file(process.env.KEY || "")
+    },
     routes: {
         "/v1/models": async req => {
             const ollamaModels = await fetch("https://ollama.com/v1/models").then(res => res.json()) as { object: string; data: Array<{ id: string; object: string; owned_by: string; created: number }> };
@@ -32,9 +36,10 @@ const server = Bun.serve({
                 headers: { "Content-Type": "application/json" }
             });
         },
-        "/v1/web_search": async req => {
+        "/api/web_search": async req => {
             const searchUrl = "https://ollama.com/api/web_search";
-            const query = new URL(req.url).searchParams.get("query") || "";
+            const body = await req.json() as { q?: string };
+            const query = body.q || "";
 
             if (!query) {
                 return new Response(JSON.stringify({
