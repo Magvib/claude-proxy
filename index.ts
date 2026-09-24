@@ -1,12 +1,26 @@
 console.log("\x1b[1;36mStarting claude-proxy...\x1b[0m");
 
 const ollamaKey = process.env.OLLAMA_KEY || "";
+const openrouterKey = process.env.OPENROUTER_KEY || "";
+
 const port = process.env.PORT || 1810;
-const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.2";
-const sonnetAlternative = process.env.SONNET_ALTERNATIVE || "kimi-k2.6";
-const haikuAlternative = process.env.HEIKU_ALTERNATIVE || "deepseek-v4-flash";
 const log = process.env.LOGGING ? process.env.LOGGING == "true" : false;
 const logPrefix = log ? "\x1b[1;36m" : "";
+
+const opusAlternative = process.env.OPUS_ALTERNATIVE || "glm-5.2";
+const sonnetAlternative = process.env.SONNET_ALTERNATIVE || "deepseek-v4-flash";
+const haikuAlternative = process.env.HAIKU_ALTERNATIVE || "gemma4:31b";
+
+const openRouterModels = [
+    'openai/gpt-5.6-luna',
+    'anthropic/claude-fable-5',
+    'anthropic/claude-opus-4.8',
+    'anthropic/claude-sonnet-5',
+    'deepseek/deepseek-v4-pro',
+    'deepseek/deepseek-v4-flash',
+    'minimax/minimax-m3',
+    'x-ai/grok-4.5',
+];
 
 if (log) {
     console.log(`${logPrefix}Starting server on port ${port}...`);
@@ -31,6 +45,15 @@ const server = Bun.serve({
                     type: "model"
                 })).sort((a, b) => a.display_name.localeCompare(b.display_name))
             };
+
+            openRouterModels.forEach((model) => {
+                claudeModels.data.push({
+                    created_at: new Date().toISOString(),
+                    display_name: (model.split("/")[1] ?? '').replace(/[:-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) + " (OpenRouter)",
+                    id: 'claude-opus-:' + btoa('openrouter-' + model),
+                    type: "model"
+                });
+            });
 
             return new Response(JSON.stringify(claudeModels), {
                 headers: { "Content-Type": "application/json" }
@@ -67,9 +90,11 @@ const server = Bun.serve({
             const method = req.method;
             var body = await req.text();
             const model = body.match(/"model":"([^"]+)"/)?.[1] || "";
+            var provider = "ollama";
 
             // replace claude-opus-4-7 with kimi-k2.6
             body = body.replace(/"model":"claude-opus-4-7"/g, `"model":"${opusAlternative}"`);
+            body = body.replace(/"model":"claude-opus-4-8"/g, `"model":"${opusAlternative}"`);
             body = body.replace(/"model":"claude-sonnet-4-6"/g, `"model":"${sonnetAlternative}"`);
             body = body.replace(/"model":"claude-haiku-4-5-20251001"/g, `"model":"${haikuAlternative}"`);
 
@@ -77,6 +102,12 @@ const server = Bun.serve({
             if (model.startsWith("claude-opus-:")) {
                 var modelDecoded = model.replace("claude-opus-:", "");
                 modelDecoded = atob(modelDecoded);
+
+                if (modelDecoded.startsWith("openrouter-")) {
+                    provider = "openrouter";
+                    modelDecoded = modelDecoded.replace("openrouter-", "");
+                }
+                
                 body = body.replace(/"model":"claude-opus-:([^"]+)"/g, `"model":"${modelDecoded}"`);
             }
 
@@ -84,20 +115,43 @@ const server = Bun.serve({
             body = body.replace(/"model":"opus-/g, '"model":"');
             body = body.replace(/"model":"claude-/g, '"model":"');
 
-            const response = await fetch(`https://ollama.com/${path}`, {
-                method,
-                body,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${ollamaKey}`
-                }
-            });
+            // https://openrouter.ai/api/v1/messages
+            var response = null;
+            if (provider == "openrouter") {
+                response = await fetch(`https://openrouter.ai/api${path}`, {
+                    method,
+                    body,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${openrouterKey}`
+                    }
+                });
 
-            if (log) {
-                console.log(logPrefix, method, path, response.status, 'model', model);
+                return response;
+            } else if (provider == "ollama") {
+                response = await fetch(`https://ollama.com/${path}`, {
+                    method,
+                    body,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${ollamaKey}`
+                    }
+                });
             }
 
-            return response;
+            if (log) {
+                var modelForLog = model;
+                if (model.startsWith("claude-opus-:")) {
+                    try { modelForLog = atob(model.replace("claude-opus-:", "")); } catch {}
+                }
+                console.log(logPrefix, method, path, response?.status, 'model', modelForLog, 'provider', provider);
+            }
+
+            return response ?? new Response(JSON.stringify({
+                error: "No response from provider"
+            }), {
+                headers: { "Content-Type": "application/json" }
+            });
         }
     }
 });
